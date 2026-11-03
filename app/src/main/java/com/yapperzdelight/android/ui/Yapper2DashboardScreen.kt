@@ -76,10 +76,13 @@ fun Yapper2DashboardScreen(
     var isIngesting by remember { mutableStateOf(false) }
     var uploadProgress by remember { mutableStateOf<Float?>(null) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var showTutorialDialog by remember { mutableStateOf(false) }
 
     // Predictive Back / Hardware Back Button Guard
-    BackHandler(enabled = showDeleteAccountDialog || currentDraft != null) {
-        if (showDeleteAccountDialog) {
+    BackHandler(enabled = showDeleteAccountDialog || currentDraft != null || showTutorialDialog) {
+        if (showTutorialDialog) {
+            showTutorialDialog = false
+        } else if (showDeleteAccountDialog) {
             showDeleteAccountDialog = false
         } else if (currentDraft != null) {
             currentDraft = null
@@ -158,24 +161,54 @@ fun Yapper2DashboardScreen(
                     )
                 }
 
-                // Credits Badge
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = YapperSurfaceVariant,
-                    border = BorderStroke(1.dp, YapperBorder)
+                // Action & Credits Badges
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = YapperHotPink.copy(alpha = 0.2f),
+                        border = BorderStroke(1.dp, YapperHotPink),
+                        modifier = Modifier
+                            .clickable { showTutorialDialog = true }
+                            .semantics {
+                                contentDescription = "Open Yapper 2.0 walk-through tutorial"
+                            }
                     ) {
-                        Text("⚡", fontSize = 14.sp)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Unlimited Pro",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = YapperWarmPaper
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("💡", fontSize = 13.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Tutorial",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = YapperHotPinkLight
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = YapperSurfaceVariant,
+                        border = BorderStroke(1.dp, YapperBorder)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("⚡", fontSize = 13.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Unlimited Pro",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = YapperWarmPaper
+                            )
+                        }
                     }
                 }
             }
@@ -205,6 +238,29 @@ fun Yapper2DashboardScreen(
                         color = YapperTextMuted,
                         lineHeight = 18.sp
                     )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = YapperSurfaceVariant,
+                        border = BorderStroke(1.dp, YapperBorder),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showTutorialDialog = true }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("💡", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "New here? Tap for 4-Step Quick Tour & Feature Guide ➔",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = YapperHotPinkLight
+                            )
+                        }
+                    }
                 }
             }
 
@@ -624,6 +680,12 @@ fun Yapper2DashboardScreen(
                     Text("Cancel", color = YapperWarmPaper)
                 }
             }
+        )
+    }
+
+    if (showTutorialDialog) {
+        YapperTutorialWalkthroughDialog(
+            onDismiss = { showTutorialDialog = false }
         )
     }
 }
