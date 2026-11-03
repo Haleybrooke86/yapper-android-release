@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -73,6 +76,15 @@ fun Yapper2DashboardScreen(
     var isIngesting by remember { mutableStateOf(false) }
     var uploadProgress by remember { mutableStateOf<Float?>(null) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
+
+    // Predictive Back / Hardware Back Button Guard
+    BackHandler(enabled = showDeleteAccountDialog || currentDraft != null) {
+        if (showDeleteAccountDialog) {
+            showDeleteAccountDialog = false
+        } else if (currentDraft != null) {
+            currentDraft = null
+        }
+    }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(15)
@@ -331,6 +343,9 @@ fun Yapper2DashboardScreen(
                         ),
                         modifier = Modifier
                             .width(220.dp)
+                            .semantics {
+                                contentDescription = "${preset.title} style, ${preset.badge}. ${preset.desc}"
+                            }
                             .clickable { selectedPreset = preset }
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
@@ -451,7 +466,11 @@ fun Yapper2DashboardScreen(
                                 },
                                 shape = RoundedCornerShape(10.dp),
                                 border = BorderStroke(1.dp, YapperBorder),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .semantics {
+                                        contentDescription = "Save ${video.title} to device photos and gallery"
+                                    }
                             ) {
                                 Text("Save to Photos", fontSize = 13.sp, color = YapperWarmPaper)
                             }
@@ -466,7 +485,11 @@ fun Yapper2DashboardScreen(
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = YapperSurfaceVariant),
                                 shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .semantics {
+                                        contentDescription = "Share ${video.title} video with social apps"
+                                    }
                             ) {
                                 Text("Share", fontSize = 13.sp, color = YapperWarmPaper)
                             }
