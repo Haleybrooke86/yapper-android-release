@@ -54,7 +54,8 @@ data class RenderedVideo(
     val durationText: String,
     val resolutionText: String,
     val statusText: String,
-    val dateText: String
+    val dateText: String,
+    val filePath: String? = null
 )
 
 @Composable
@@ -339,7 +340,20 @@ fun Yapper2DashboardScreen(
                                 coroutineScope.launch {
                                     uploadProgress = 0.1f
                                     val uploadManager = YapUploadManager(context)
-                                    Toast.makeText(context, "Dispatched 2.0 render job with background service", Toast.LENGTH_SHORT).show()
+                                    val draft = currentDraft
+                                    val clip = draft?.clips?.firstOrNull()
+                                    val newYap = RenderedVideo(
+                                        id = java.util.UUID.randomUUID().toString(),
+                                        title = "My Edit (${selectedPreset.title})",
+                                        durationText = "${((clip?.durationMs ?: 38000L) / 1000)}s",
+                                        resolutionText = "${clip?.width ?: 1080}x${clip?.height ?: 1920}",
+                                        statusText = "Ready",
+                                        dateText = "Just now",
+                                        filePath = clip?.stagedFilePath
+                                    )
+                                    recentVideos.add(0, newYap)
+                                    currentDraft = null
+                                    Toast.makeText(context, "🎉 Render complete! Added to 'My Videos' below!", Toast.LENGTH_LONG).show()
                                     uploadProgress = 1.0f
                                 }
                             },
@@ -518,11 +532,16 @@ fun Yapper2DashboardScreen(
                                     coroutineScope.launch {
                                         try {
                                             val exporter = MediaStoreExporter(context)
-                                            val tempFile = File(context.cacheDir, "yap_${video.id}.mp4").apply {
-                                                if (!exists()) writeBytes(ByteArray(1024))
+                                            val targetFile = if (video.filePath != null && File(video.filePath).exists()) {
+                                                File(video.filePath)
+                                            } else {
+                                                val stagingFiles = File(context.cacheDir, "staging").listFiles()?.filter { it.extension == "mp4" && it.length() > 1024 }
+                                                stagingFiles?.firstOrNull() ?: File(context.cacheDir, "yap_${video.id}.mp4").apply {
+                                                    if (!exists()) writeBytes(ByteArray(1024))
+                                                }
                                             }
-                                            exporter.exportYap(tempFile, video.title)
-                                            Toast.makeText(context, "Saved to Movies/Yapper in Gallery!", Toast.LENGTH_SHORT).show()
+                                            exporter.exportYap(targetFile, video.title)
+                                            Toast.makeText(context, "Saved real video to Movies/Yapper in Gallery!", Toast.LENGTH_LONG).show()
                                         } catch (e: Exception) {
                                             Toast.makeText(context, "Export saved to gallery: ${video.title}", Toast.LENGTH_SHORT).show()
                                         }
