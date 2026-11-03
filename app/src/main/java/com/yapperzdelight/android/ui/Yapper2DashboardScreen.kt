@@ -2,6 +2,7 @@ package com.yapperzdelight.android.ui
 
 import android.content.Context
 import android.content.Intent
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -9,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -21,7 +23,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
@@ -141,7 +147,7 @@ fun Yapper2DashboardScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // 1. Header with Brand & Version
+            // 1. Header with Brand & Action Badges
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -151,7 +157,7 @@ fun Yapper2DashboardScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "Yapper",
-                            fontSize = 32.sp,
+                            fontSize = 28.sp,
                             fontWeight = FontWeight.Bold,
                             color = YapperWarmPaper
                         )
@@ -163,20 +169,20 @@ fun Yapper2DashboardScreen(
                         ) {
                             Text(
                                 text = "2.0",
-                                fontSize = 14.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                         }
                     }
                     Text(
-                        text = "AI Video Editor & Trybe UGC Studio",
-                        fontSize = 14.sp,
+                        text = "AI Video Editor & Trybe Studio",
+                        fontSize = 13.sp,
                         color = YapperTextMuted
                     )
                 }
 
-                // Action & Credits Badges
+                // Action Badges (Tutorial & Pro)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -218,7 +224,7 @@ fun Yapper2DashboardScreen(
                             Text("⚡", fontSize = 13.sp)
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Unlimited Pro",
+                                text = "Pro",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = YapperWarmPaper
@@ -659,7 +665,95 @@ fun Yapper2DashboardScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // Prominent Tap to Play Button
+                        // Video Thumbnail Preview Frame with Scrim and Play Button
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF140E12))
+                                .clickable { activePlayingVideo = video },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            val bitmapState = remember(video.filePath) {
+                                mutableStateOf<android.graphics.Bitmap?>(null)
+                            }
+
+                            LaunchedEffect(video.filePath) {
+                                if (video.filePath != null) {
+                                    val file = File(video.filePath)
+                                    if (file.exists() && file.length() > 1024) {
+                                        try {
+                                            val retriever = MediaMetadataRetriever()
+                                            retriever.setDataSource(file.absolutePath)
+                                            val frame = retriever.getFrameAtTime(500000)
+                                            bitmapState.value = frame
+                                            retriever.release()
+                                        } catch (e: Exception) {
+                                            // fallback
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (bitmapState.value != null) {
+                                Image(
+                                    bitmap = bitmapState.value!!.asImageBitmap(),
+                                    contentDescription = "Video preview frame for ${video.title}",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                // Dark gradient scrim
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Black.copy(alpha = 0.35f))
+                                )
+                            } else {
+                                // Styled Video Gradient Placeholder
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                colors = listOf(Color(0xFF2C1924), Color(0xFF181015))
+                                            )
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("🎬", fontSize = 36.sp)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text("Tap to Watch AI Preview", fontSize = 12.sp, color = YapperHotPinkLight, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+                            }
+
+                            // Centered Big Round Play Button
+                            Box(
+                                modifier = Modifier
+                                    .size(54.dp)
+                                    .background(YapperHotPink.copy(alpha = 0.95f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("▶", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            // Bottom Duration Pill
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(8.dp)
+                                    .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(video.durationText, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Large Play Video Button
                         Button(
                             onClick = { activePlayingVideo = video },
                             colors = ButtonDefaults.buttonColors(containerColor = YapperHotPink),
