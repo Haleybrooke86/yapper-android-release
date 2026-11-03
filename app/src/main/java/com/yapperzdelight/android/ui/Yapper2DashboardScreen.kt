@@ -58,6 +58,8 @@ data class RenderedVideo(
     val filePath: String? = null
 )
 
+enum class DashboardTab { STUDIO, MY_VIDEOS }
+
 @Composable
 fun Yapper2DashboardScreen(
     modifier: Modifier = Modifier
@@ -76,6 +78,7 @@ fun Yapper2DashboardScreen(
     var currentDraft by remember { mutableStateOf<SelectionDraft?>(null) }
     var isIngesting by remember { mutableStateOf(false) }
     var uploadProgress by remember { mutableStateOf<Float?>(null) }
+    var selectedTab by remember { mutableStateOf(DashboardTab.STUDIO) }
     val prefs = remember { context.getSharedPreferences("yapper_creator_prefs", Context.MODE_PRIVATE) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var showTutorialDialog by remember {
@@ -222,6 +225,88 @@ fun Yapper2DashboardScreen(
                 }
             }
 
+            // 1.5 Prominent Tab Navigation Switcher (Studio vs My Videos)
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = YapperSurface,
+                border = BorderStroke(1.dp, YapperBorder),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Tab 1: Studio & Create
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (selectedTab == DashboardTab.STUDIO) YapperHotPink else Color.Transparent,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { selectedTab = DashboardTab.STUDIO }
+                            .semantics { contentDescription = "Studio and Video Creator tab" }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("⚡", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Studio",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (selectedTab == DashboardTab.STUDIO) Color.White else YapperTextMuted
+                            )
+                        }
+                    }
+
+                    // Tab 2: My Videos (The option she was looking for!)
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (selectedTab == DashboardTab.MY_VIDEOS) YapperHotPink else Color.Transparent,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { selectedTab = DashboardTab.MY_VIDEOS }
+                            .semantics { contentDescription = "My Videos gallery tab with ${recentVideos.size} items" }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("🎬", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "My Videos",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (selectedTab == DashboardTab.MY_VIDEOS) Color.White else YapperTextMuted
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        if (selectedTab == DashboardTab.MY_VIDEOS) Color.White.copy(alpha = 0.3f) else YapperHotPink,
+                                        CircleShape
+                                    )
+                                    .padding(horizontal = 7.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "${recentVideos.size}",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (selectedTab == DashboardTab.STUDIO) {
             // 2. Trybe UGC Revision Studio & Editing Coach Card
             Card(
                 shape = RoundedCornerShape(20.dp),
@@ -353,7 +438,8 @@ fun Yapper2DashboardScreen(
                                     )
                                     recentVideos.add(0, newYap)
                                     currentDraft = null
-                                    Toast.makeText(context, "🎉 Render complete! Added to 'My Videos' below!", Toast.LENGTH_LONG).show()
+                                    selectedTab = DashboardTab.MY_VIDEOS
+                                    Toast.makeText(context, "🎉 Render complete! Switched to My Videos!", Toast.LENGTH_LONG).show()
                                     uploadProgress = 1.0f
                                 }
                             },
@@ -461,6 +547,50 @@ fun Yapper2DashboardScreen(
                 }
             }
 
+            OutlinedButton(
+                onClick = { selectedTab = DashboardTab.MY_VIDEOS },
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, YapperHotPink.copy(alpha = 0.5f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+            ) {
+                Text(
+                    text = "🎬 View My Videos (${recentVideos.size} Ready) ➔",
+                    color = YapperHotPinkLight,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        } else {
+            // Tab 2: My Videos View
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = YapperSurfaceVariant,
+                border = BorderStroke(1.dp, YapperBorder),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { selectedTab = DashboardTab.STUDIO }
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("➕", fontSize = 16.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Create Another Video",
+                            fontWeight = FontWeight.Bold,
+                            color = YapperHotPinkLight,
+                            fontSize = 14.sp
+                        )
+                    }
+                    Text("Go to Studio ➔", fontSize = 12.sp, color = YapperTextMuted)
+                }
+            }
+
             // 5. My Videos (v2 Finish Screen & Export)
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -469,13 +599,14 @@ fun Yapper2DashboardScreen(
             ) {
                 Text(
                     text = "My Videos (v2 Renders)",
-                    fontSize = 18.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = YapperWarmPaper
                 )
                 Text(
                     text = "${recentVideos.size} Completed",
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = YapperSuccess
                 )
             }
@@ -580,8 +711,9 @@ fun Yapper2DashboardScreen(
                     }
                 }
             }
+        }
 
-            // 6. Account & Play Store Data Safety Footer
+        // 6. Account & Play Store Data Safety Footer
             Spacer(modifier = Modifier.height(10.dp))
             Card(
                 shape = RoundedCornerShape(16.dp),
