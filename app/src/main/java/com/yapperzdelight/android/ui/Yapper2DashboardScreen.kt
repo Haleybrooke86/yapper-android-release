@@ -79,6 +79,7 @@ fun Yapper2DashboardScreen(
     var isIngesting by remember { mutableStateOf(false) }
     var uploadProgress by remember { mutableStateOf<Float?>(null) }
     var selectedTab by remember { mutableStateOf(DashboardTab.STUDIO) }
+    var activePlayingVideo by remember { mutableStateOf<RenderedVideo?>(null) }
     val prefs = remember { context.getSharedPreferences("yapper_creator_prefs", Context.MODE_PRIVATE) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var showTutorialDialog by remember {
@@ -91,8 +92,10 @@ fun Yapper2DashboardScreen(
     }
 
     // Predictive Back / Hardware Back Button Guard
-    BackHandler(enabled = showDeleteAccountDialog || currentDraft != null || showTutorialDialog) {
-        if (showTutorialDialog) {
+    BackHandler(enabled = showDeleteAccountDialog || currentDraft != null || showTutorialDialog || activePlayingVideo != null) {
+        if (activePlayingVideo != null) {
+            activePlayingVideo = null
+        } else if (showTutorialDialog) {
             dismissTutorial()
         } else if (showDeleteAccountDialog) {
             showDeleteAccountDialog = false
@@ -616,7 +619,9 @@ fun Yapper2DashboardScreen(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = YapperSurface),
                     border = BorderStroke(1.dp, YapperBorder),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { activePlayingVideo = video }
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
@@ -652,7 +657,21 @@ fun Yapper2DashboardScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Prominent Tap to Play Button
+                        Button(
+                            onClick = { activePlayingVideo = video },
+                            colors = ButtonDefaults.buttonColors(containerColor = YapperHotPink),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                        ) {
+                            Text("▶️ Tap to Play Video", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 14.sp)
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -845,6 +864,13 @@ fun Yapper2DashboardScreen(
     if (showTutorialDialog) {
         YapperTutorialWalkthroughDialog(
             onDismiss = dismissTutorial
+        )
+    }
+
+    if (activePlayingVideo != null) {
+        YapVideoPlayerModal(
+            video = activePlayingVideo!!,
+            onDismiss = { activePlayingVideo = null }
         )
     }
 }
