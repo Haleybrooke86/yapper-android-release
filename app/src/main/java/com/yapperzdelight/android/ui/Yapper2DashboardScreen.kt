@@ -75,13 +75,21 @@ fun Yapper2DashboardScreen(
     var currentDraft by remember { mutableStateOf<SelectionDraft?>(null) }
     var isIngesting by remember { mutableStateOf(false) }
     var uploadProgress by remember { mutableStateOf<Float?>(null) }
+    val prefs = remember { context.getSharedPreferences("yapper_creator_prefs", Context.MODE_PRIVATE) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
-    var showTutorialDialog by remember { mutableStateOf(false) }
+    var showTutorialDialog by remember {
+        mutableStateOf(!prefs.getBoolean("has_seen_v2_walkthrough", false))
+    }
+
+    val dismissTutorial = {
+        prefs.edit().putBoolean("has_seen_v2_walkthrough", true).apply()
+        showTutorialDialog = false
+    }
 
     // Predictive Back / Hardware Back Button Guard
     BackHandler(enabled = showDeleteAccountDialog || currentDraft != null || showTutorialDialog) {
         if (showTutorialDialog) {
-            showTutorialDialog = false
+            dismissTutorial()
         } else if (showDeleteAccountDialog) {
             showDeleteAccountDialog = false
         } else if (currentDraft != null) {
@@ -685,7 +693,7 @@ fun Yapper2DashboardScreen(
 
     if (showTutorialDialog) {
         YapperTutorialWalkthroughDialog(
-            onDismiss = { showTutorialDialog = false }
+            onDismiss = dismissTutorial
         )
     }
 }
