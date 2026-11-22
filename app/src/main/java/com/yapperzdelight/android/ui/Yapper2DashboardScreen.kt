@@ -63,7 +63,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -150,10 +152,15 @@ fun Yapper2DashboardScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val c = YapperTheme.colors
+    val haptic = LocalHapticFeedback.current
     val snackbar = remember { SnackbarHostState() }
     val prefs = remember { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
     val library = remember { LocalYapLibrary(context) }
-    val saveToPhotos = rememberSaveToPhotos()
+    val saveToPhotosRaw = rememberSaveToPhotos()
+    val saveToPhotos: (LocalYap) -> Unit = {
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        saveToPhotosRaw(it)
+    }
 
     var lookName by rememberSaveable { mutableStateOf(CreatorLook.STORYTIME.name) }
     val look = CreatorLook.valueOf(lookName)
@@ -191,6 +198,7 @@ fun Yapper2DashboardScreen(modifier: Modifier = Modifier) {
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(SelectionDraft.MAX_FIXTURE_ITEMS)) { uris ->
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         ingesting = true
         ingestProgress = 0f
         ingestLabel = "Getting your clips ready"
@@ -254,7 +262,16 @@ fun Yapper2DashboardScreen(modifier: Modifier = Modifier) {
                 when (tab) {
                     DashboardTab.NEW_YAP -> StudioTab(
                         look = look,
-                        onLook = { lookName = it.name },
+                        onLook = {
+                            if (it.name != lookName) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            lookName = it.name
+                        },
+                        onTrybe = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            if (!openStudio(context, "/app/trybe")) {
+                                say("No browser found. Visit yapperzdelight.com/app/trybe.")
+                            }
+                        },
                         showTourHint = !tourSeen,
                         onTour = ::openTour,
                         draft = draft,
@@ -276,6 +293,7 @@ fun Yapper2DashboardScreen(modifier: Modifier = Modifier) {
                         onKeep = {
                             val current = draft ?: return@StudioTab
                             scope.launch {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 val next = library.keep(current, look.title)
                                 kept.clear()
                                 kept.addAll(next)
@@ -399,6 +417,7 @@ private fun Header(onHelp: () -> Unit) {
 private fun StudioTab(
     look: CreatorLook,
     onLook: (CreatorLook) -> Unit,
+    onTrybe: () -> Unit,
     showTourHint: Boolean,
     onTour: () -> Unit,
     draft: SelectionDraft?,
@@ -437,6 +456,9 @@ private fun StudioTab(
         }
         Spacer(Modifier.height(12.dp))
     }
+
+    TrybeQuickOpen(onClick = onTrybe)
+    Spacer(Modifier.height(12.dp))
 
     YapperCard(color = c.cardSubtle, contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp)) {
         Kicker("Before you film")
@@ -505,6 +527,8 @@ private fun StudioTab(
                     Text("Clear", style = MaterialTheme.typography.labelMedium, color = c.accent)
                 }
             }
+            Spacer(Modifier.height(14.dp))
+            ClipOrderList(draft.clips.sortedBy { it.tapIndex })
             Spacer(Modifier.height(18.dp))
             PrimaryPillButton(
                 text = "Edit in my studio",
@@ -551,6 +575,58 @@ private fun StudioTab(
             TextButton(onClick = onDeleteAccount, modifier = Modifier.heightIn(min = YapperTokens.MinTouch)) {
                 Text("Delete account", style = MaterialTheme.typography.labelMedium, color = c.danger)
             }
+        }
+    }
+}
+
+@Composable
+private fun TrybeQuickOpen(onClick: () -> Unit) {
+    val c = YapperTheme.colors
+    Surface(
+        shape = YapperTokens.Radius.tile,
+        color = c.card,
+        border = BorderStroke(YapperTokens.BorderWidth, c.line),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = YapperTokens.MinTouch)
+            .clickable(role = Role.Button, onClickLabel = "Open Trybe and UGC in your browser", onClick = onClick),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Trybe & UGC", style = MaterialTheme.typography.titleSmall, color = c.ink)
+                Spacer(Modifier.height(2.dp))
+                Text("Brand brief and revisions, on the web.", style = MaterialTheme.typography.bodySmall, color = c.muted)
+            }
+            Icon(YapperIcons.OpenExternal, contentDescription = null, tint = c.accent, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+/** Clips in the exact order she tapped them, each with a numbered badge and its own length. */
+@Composable
+private fun ClipOrderList(clips: List<com.yapper.android.model.StagedClip>) {
+    val c = YapperTheme.colors
+    clips.forEachIndexed { i, clip ->
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = if (i == 0) 0.dp else 8.dp)
+                .semantics(mergeDescendants = true) {
+                    contentDescription = "Clip ${i + 1}, ${formatDuration(clip.durationMs)}"
+                },
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .background(c.accent, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("${i + 1}", style = MaterialTheme.typography.labelMedium, color = c.onAccent)
+            }
+            Spacer(Modifier.width(12.dp))
+            Text("Clip ${i + 1}", style = MaterialTheme.typography.bodyMedium, color = c.ink, modifier = Modifier.weight(1f))
+            Text(formatDuration(clip.durationMs), style = MaterialTheme.typography.bodySmall, color = c.muted)
         }
     }
 }

@@ -123,4 +123,16 @@ object YapperIcons {
     }
 
     val ArrowLeft: ImageVector by lazy { line("ArrowLeft", "M19 12H5", "M11 6l-6 6l6 6") }
+
+    val Pause: ImageVector by lazy { solid("Pause", "M7 4.5h3.2v15H7zM13.8 4.5H17v15h-3.2z") }
+
+    val Replay: ImageVector by lazy { line("Replay", "M4 12a8 8 0 1 0 2.6 -5.9", "M4 4v4.5h4.5") }
+
+    val VolumeOn: ImageVector by lazy {
+        line("VolumeOn", "M4 9.5v5h3.5l4.5 3.5v-12l-4.5 3.5z", "M15.5 9a4 4 0 0 1 0 6", "M18 6.5a7.5 7.5 0 0 1 0 11")
+    }
+
+    val VolumeOff: ImageVector by lazy {
+        line("VolumeOff", "M4 9.5v5h3.5l4.5 3.5v-12l-4.5 3.5z", "M16 9.5l5 5", "M21 9.5l-5 5")
+    }
 }
