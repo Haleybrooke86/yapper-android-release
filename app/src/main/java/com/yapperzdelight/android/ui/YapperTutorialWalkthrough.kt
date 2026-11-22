@@ -43,7 +43,7 @@ val YapperTutorialSteps = listOf(
     TutorialStep(
         icon = YapperIcons.NewYap,
         title = "Pick your look",
-        description = "At the top of New yap, choose Storytime, Lifestyle, TikTok Shop or Just edit it. You get three quick tips for filming that kind of video.",
+        description = "At the top of New yap, choose Storytime, Lifestyle, TikTok Shop or Just edit it. You get three quick tips for filming that kind of video. Trybe & UGC opens in your browser right below.",
     ),
     TutorialStep(
         icon = YapperIcons.Plus,
