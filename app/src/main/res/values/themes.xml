@@ -1,5 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- The window is painted in the brand colour from the first frame, so there is no white flash before Compose draws,
+     in light or dark. -->
 <resources>
+    <style name="Base.Theme.Yapper" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/yapper_background</item>
+        <item name="android:colorBackground">@color/yapper_background</item>
+        <item name="android:colorAccent">@color/yapper_accent</item>
+        <item name="android:colorPrimary">@color/yapper_accent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">@bool/yapper_light_system_bars</item>
+    </style>
 
-    <style name="Theme.Yapper" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.Yapper" parent="Base.Theme.Yapper" />
 </resources>

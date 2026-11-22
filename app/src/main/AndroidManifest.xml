@@ -8,6 +8,11 @@
     <!-- Android 13+ Notification permission for render-complete and upload alerts -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Save to Photos on Android 9 and older only; Android 10+ saves through MediaStore with no permission. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -46,6 +51,17 @@
                     android:pathPrefix="/yap" />
             </intent-filter>
         </activity>
+
+        <!-- Shares real video files (video/mp4) with other apps through content URIs, never raw file paths. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
     </application>
 

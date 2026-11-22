@@ -1,10 +1,9 @@
 package com.yapperzdelight.android.ui
 
 import android.content.Context
-import android.content.Intent
+import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
-import android.net.Uri
-import android.widget.Toast
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -13,958 +12,738 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.yapper.android.account.AccountDeletionManager
-import com.yapper.android.media.MediaStoreExporter
 import com.yapper.android.media.PhotoPickerManager
 import com.yapper.android.model.SelectionDraft
-import com.yapper.android.model.StagedClip
-import com.yapper.android.ui.adaptive.WindowWidthClass
-import com.yapper.android.ui.adaptive.YapperAdaptiveScaffold
-import com.yapper.android.upload.YapUploadManager
-import com.yapperzdelight.android.ui.theme.*
+import com.yapperzdelight.android.data.LocalYap
+import com.yapperzdelight.android.data.LocalYapLibrary
+import com.yapperzdelight.android.ui.theme.YapperIcons
+import com.yapperzdelight.android.ui.theme.YapperTheme
+import com.yapperzdelight.android.ui.theme.YapperTokens
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.io.File
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
-enum class CreatorPreset(val title: String, val badge: String, val desc: String) {
-    SHOP_SHOWCASE("Shop Showcase", "TikTok Shop v2", "Dynamic product zoom, callouts & hook pacing"),
-    LIFESTYLE("Lifestyle & Vlog", "Creator DNA", "Warm color grading, relaxed cuts & natural rhythm"),
-    TALKING_HEAD("Talking Head", "1-Speaker", "Centered safe captions & awkward silence removal"),
-    DUAL_TWIN("Dual-Speaker Twin", "Twin Split", "Side-by-side auto-focus on active voice")
+/**
+ * The four looks are the web studio's real journeys (src/lib/journeys.ts), with the same names and lines,
+ * so a look picked here opens the matching studio setup at yapperzdelight.com/app/new.
+ */
+enum class CreatorLook(
+    val title: String,
+    val line: String,
+    val studioQuery: String,
+    val cues: List<String>,
+) {
+    STORYTIME(
+        "Storytime",
+        "Keep them listening.",
+        "journey=storytime",
+        listOf(
+            "Say your best line first, then tell it like you would to a friend.",
+            "Phone at eye level, about an arm's length away.",
+            "Pause whenever you need to. The gaps get trimmed.",
+        ),
+    ),
+    LIFESTYLE(
+        "Lifestyle",
+        "Make the everyday a moment.",
+        "journey=lifestyle",
+        listOf(
+            "Face a window for soft, even light.",
+            "Grab a few quiet moments without talking.",
+            "Keep each clip short and let it breathe.",
+        ),
+    ),
+    TIKTOK_SHOP(
+        "TikTok Shop",
+        "Your story. Product as the payoff.",
+        "journey=tiktok_shop",
+        listOf(
+            "Hold the product close to the lens for your first line.",
+            "Show the problem it fixes, then show it working.",
+            "Skip prices and links. Talk about how it feels to use.",
+        ),
+    ),
+    JUST_EDIT(
+        "Just edit it",
+        "No format. Give me the mess.",
+        "fresh=1",
+        listOf(
+            "Good light and a steady phone do most of the work.",
+            "Talk naturally. Keep the stumbles, the good parts get found.",
+            "Up to 15 clips, in any order you like.",
+        ),
+    ),
 }
 
-data class RenderedVideo(
-    val id: String,
-    val title: String,
-    val durationText: String,
-    val resolutionText: String,
-    val statusText: String,
-    val dateText: String,
-    val filePath: String? = null
-)
+enum class DashboardTab(val label: String, val icon: ImageVector) {
+    NEW_YAP("New yap", YapperIcons.NewYap),
+    MY_YAPS("My yaps", YapperIcons.MyYaps),
+}
 
-enum class DashboardTab { STUDIO, MY_VIDEOS }
+private const val PREFS = "yapper_creator_prefs"
+private const val KEY_TOUR_SEEN = "has_seen_v3_tour"
 
 @Composable
-fun Yapper2DashboardScreen(
-    modifier: Modifier = Modifier
-) {
+fun Yapper2DashboardScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    val configuration = LocalConfiguration.current
+    val scope = rememberCoroutineScope()
+    val c = YapperTheme.colors
+    val snackbar = remember { SnackbarHostState() }
+    val prefs = remember { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
+    val library = remember { LocalYapLibrary(context) }
+    val saveToPhotos = rememberSaveToPhotos()
 
-    val windowWidthClass = when {
-        configuration.screenWidthDp < 600 -> WindowWidthClass.COMPACT
-        configuration.screenWidthDp < 840 -> WindowWidthClass.MEDIUM
-        else -> WindowWidthClass.EXPANDED
-    }
+    var lookName by rememberSaveable { mutableStateOf(CreatorLook.STORYTIME.name) }
+    val look = CreatorLook.valueOf(lookName)
+    var tabName by rememberSaveable { mutableStateOf(DashboardTab.NEW_YAP.name) }
+    val tab = DashboardTab.valueOf(tabName)
+    var draft by remember { mutableStateOf<SelectionDraft?>(null) }
+    var ingesting by remember { mutableStateOf(false) }
+    var ingestProgress by remember { mutableFloatStateOf(0f) }
+    var ingestLabel by remember { mutableStateOf("") }
+    val kept = remember { mutableStateListOf<LocalYap>() }
+    var playing by remember { mutableStateOf<LocalYap?>(null) }
+    var confirmRemove by remember { mutableStateOf<LocalYap?>(null) }
+    var showDeleteAccount by remember { mutableStateOf(false) }
+    var showTour by remember { mutableStateOf(false) }
+    var tourSeen by remember { mutableStateOf(prefs.getBoolean(KEY_TOUR_SEEN, false)) }
 
-    var selectedPreset by remember { mutableStateOf(CreatorPreset.SHOP_SHOWCASE) }
-    var currentDraft by remember { mutableStateOf<SelectionDraft?>(null) }
-    var isIngesting by remember { mutableStateOf(false) }
-    var uploadProgress by remember { mutableStateOf<Float?>(null) }
-    var selectedTab by remember { mutableStateOf(DashboardTab.STUDIO) }
-    var activePlayingVideo by remember { mutableStateOf<RenderedVideo?>(null) }
-    val prefs = remember { context.getSharedPreferences("yapper_creator_prefs", Context.MODE_PRIVATE) }
-    var showDeleteAccountDialog by remember { mutableStateOf(false) }
-    var showTutorialDialog by remember {
-        mutableStateOf(!prefs.getBoolean("has_seen_v2_walkthrough", false))
-    }
-
-    val dismissTutorial = {
-        prefs.edit().putBoolean("has_seen_v2_walkthrough", true).apply()
-        showTutorialDialog = false
-    }
-
-    // Predictive Back / Hardware Back Button Guard
-    BackHandler(enabled = showDeleteAccountDialog || currentDraft != null || showTutorialDialog || activePlayingVideo != null) {
-        if (activePlayingVideo != null) {
-            activePlayingVideo = null
-        } else if (showTutorialDialog) {
-            dismissTutorial()
-        } else if (showDeleteAccountDialog) {
-            showDeleteAccountDialog = false
-        } else if (currentDraft != null) {
-            currentDraft = null
+    fun openTour() {
+        showTour = true
+        if (!tourSeen) {
+            prefs.edit().putBoolean(KEY_TOUR_SEEN, true).apply()
+            tourSeen = true
         }
     }
 
-    val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickMultipleVisualMedia(15)
-    ) { uris ->
-        if (uris.isNotEmpty()) {
-            isIngesting = true
-            coroutineScope.launch {
-                try {
-                    val manager = PhotoPickerManager(context)
-                    val draft = manager.stageSelectedUris(uris)
-                    currentDraft = draft
-                    Toast.makeText(context, "Staged ${draft.count} clips (${draft.totalBytes / (1024 * 1024)} MB)", Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    Toast.makeText(context, "Ingest failed: ${e.message}", Toast.LENGTH_LONG).show()
-                } finally {
-                    isIngesting = false
+    fun say(message: String) {
+        scope.launch { snackbar.showSnackbar(message) }
+    }
+
+    LaunchedEffect(Unit) {
+        kept.clear()
+        kept.addAll(library.load())
+    }
+
+    BackHandler(enabled = tab == DashboardTab.MY_YAPS) { tabName = DashboardTab.NEW_YAP.name }
+
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(SelectionDraft.MAX_FIXTURE_ITEMS)) { uris ->
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        ingesting = true
+        ingestProgress = 0f
+        ingestLabel = "Getting your clips ready"
+        scope.launch {
+            try {
+                draft = PhotoPickerManager(context).stageSelectedUris(uris) { done, total, percent ->
+                    ingestProgress = percent / 100f
+                    ingestLabel = "Getting clip $done of $total ready"
                 }
+            } catch (_: Exception) {
+                say("Some clips could not be added. Try picking them again.")
+            } finally {
+                ingesting = false
             }
         }
     }
 
-    // Mock recent rendered yaps
-    val recentVideos = remember {
-        mutableStateListOf(
-            RenderedVideo("1", "Morning Coffee & Routine", "0:42", "4K HDR", "Ready", "Today"),
-            RenderedVideo("2", "Viral Product Unboxing", "0:58", "1080p", "Ready", "Yesterday"),
-            RenderedVideo("3", "Creator Interview Split", "1:14", "4K HDR", "Ready", "Oct 31")
-        )
-    }
-
-    val listContent: @Composable () -> Unit = {
-        Column(
+    Scaffold(
+        modifier = modifier,
+        containerColor = c.background,
+        contentColor = c.ink,
+        snackbarHost = { SnackbarHost(snackbar) },
+        bottomBar = {
+            Column {
+                HorizontalDivider(color = c.line, thickness = 1.dp)
+                NavigationBar(containerColor = c.card, tonalElevation = 0.dp) {
+                    DashboardTab.entries.forEach { t ->
+                        NavigationBarItem(
+                            selected = tab == t,
+                            onClick = { tabName = t.name },
+                            icon = { Icon(t.icon, contentDescription = null) },
+                            label = { Text(t.label, style = MaterialTheme.typography.labelMedium) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = c.accent,
+                                selectedTextColor = c.accent,
+                                indicatorColor = c.petal,
+                                unselectedIconColor = c.muted,
+                                unselectedTextColor = c.muted,
+                            ),
+                        )
+                    }
+                }
+            }
+        },
+    ) { padding ->
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(padding),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            // 1. Header with Brand & Action Badges
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Yapper",
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = YapperWarmPaper
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Box(
-                            modifier = Modifier
-                                .background(YapperHotPink, RoundedCornerShape(8.dp))
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = "2.0",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
-                    }
-                    Text(
-                        text = "AI Video Editor & Trybe Studio",
-                        fontSize = 13.sp,
-                        color = YapperTextMuted
-                    )
-                }
-
-                // Action Badges (Tutorial & Pro)
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = YapperHotPink.copy(alpha = 0.2f),
-                        border = BorderStroke(1.dp, YapperHotPink),
-                        modifier = Modifier
-                            .clickable { showTutorialDialog = true }
-                            .semantics {
-                                contentDescription = "Open Yapper 2.0 walk-through tutorial"
-                            }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("💡", fontSize = 13.sp)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Tutorial",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = YapperHotPinkLight
-                            )
-                        }
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = YapperSurfaceVariant,
-                        border = BorderStroke(1.dp, YapperBorder)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("⚡", fontSize = 13.sp)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Pro",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = YapperWarmPaper
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 1.5 Prominent Tab Navigation Switcher (Studio vs My Videos)
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = YapperSurface,
-                border = BorderStroke(1.dp, YapperBorder),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    // Tab 1: Studio & Create
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (selectedTab == DashboardTab.STUDIO) YapperHotPink else Color.Transparent,
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { selectedTab = DashboardTab.STUDIO }
-                            .semantics { contentDescription = "Studio and Video Creator tab" }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(vertical = 12.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("⚡", fontSize = 14.sp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Studio",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (selectedTab == DashboardTab.STUDIO) Color.White else YapperTextMuted
-                            )
-                        }
-                    }
-
-                    // Tab 2: My Videos (The option she was looking for!)
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (selectedTab == DashboardTab.MY_VIDEOS) YapperHotPink else Color.Transparent,
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { selectedTab = DashboardTab.MY_VIDEOS }
-                            .semantics { contentDescription = "My Videos gallery tab with ${recentVideos.size} items" }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(vertical = 12.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("🎬", fontSize = 14.sp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "My Videos",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (selectedTab == DashboardTab.MY_VIDEOS) Color.White else YapperTextMuted
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Box(
-                                modifier = Modifier
-                                    .background(
-                                        if (selectedTab == DashboardTab.MY_VIDEOS) Color.White.copy(alpha = 0.3f) else YapperHotPink,
-                                        CircleShape
-                                    )
-                                    .padding(horizontal = 7.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "${recentVideos.size}",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (selectedTab == DashboardTab.STUDIO) {
-            // 2. Trybe UGC Revision Studio & Editing Coach Card
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = YapperSurface),
-                border = BorderStroke(1.dp, YapperBorder),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("✨", fontSize = 18.sp)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Trybe UGC Studio v2 Active",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = YapperHotPinkLight
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Automatic silence pruning, loudness mastered to -14 LUFS, and subtitles locked strictly inside vertical video safe zones.",
-                        fontSize = 13.sp,
-                        color = YapperTextMuted,
-                        lineHeight = 18.sp
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = YapperSurfaceVariant,
-                        border = BorderStroke(1.dp, YapperBorder),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showTutorialDialog = true }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("💡", fontSize = 14.sp)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "New here? Tap for 4-Step Quick Tour & Feature Guide ➔",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = YapperHotPinkLight
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 3. Selection & Upload Station
-            Card(
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = YapperSurface),
-                border = BorderStroke(1.dp, YapperHotPink.copy(alpha = 0.4f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "Step 1: Upload Raw Takes",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = YapperWarmPaper
-                    )
-                    Text(
-                        text = "Select up to 15 clips. Resumable background uploads preserve your progress.",
-                        fontSize = 13.sp,
-                        color = YapperTextMuted
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    if (isIngesting) {
-                        LinearProgressIndicator(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(6.dp),
-                            color = YapperHotPink
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Staging 4K footage without memory bloat...", fontSize = 12.sp, color = YapperTextMuted)
-                    } else if (currentDraft != null && currentDraft!!.clips.isNotEmpty()) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = YapperSurfaceVariant,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        text = "${currentDraft!!.count} Clips Selected",
-                                        fontWeight = FontWeight.Bold,
-                                        color = YapperWarmPaper
-                                    )
-                                    Text(
-                                        text = "${currentDraft!!.totalBytes / (1024 * 1024)} MB Total • Ready for render",
-                                        fontSize = 12.sp,
-                                        color = YapperSuccess
-                                    )
-                                }
-                                TextButton(onClick = { currentDraft = null }) {
-                                    Text("Clear", color = YapperHotPinkLight)
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    uploadProgress = 0.1f
-                                    val uploadManager = YapUploadManager(context)
-                                    val draft = currentDraft
-                                    val clip = draft?.clips?.firstOrNull()
-                                    val newYap = RenderedVideo(
-                                        id = java.util.UUID.randomUUID().toString(),
-                                        title = "My Edit (${selectedPreset.title})",
-                                        durationText = "${((clip?.durationMs ?: 38000L) / 1000)}s",
-                                        resolutionText = "${clip?.width ?: 1080}x${clip?.height ?: 1920}",
-                                        statusText = "Ready",
-                                        dateText = "Just now",
-                                        filePath = clip?.stagedFilePath
-                                    )
-                                    recentVideos.add(0, newYap)
-                                    currentDraft = null
-                                    selectedTab = DashboardTab.MY_VIDEOS
-                                    Toast.makeText(context, "🎉 Render complete! Switched to My Videos!", Toast.LENGTH_LONG).show()
-                                    uploadProgress = 1.0f
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = YapperHotPink),
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp)
-                        ) {
-                            Text(
-                                text = "Render 2.0 Polished Yap",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
-                    } else {
-                        Button(
-                            onClick = {
-                                photoPickerLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
-                                )
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = YapperHotPink),
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp)
-                        ) {
-                            Text(
-                                text = "Select Video Clips",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 4. Creator DNA Style Selector
-            Text(
-                text = "Step 2: Choose Creator Look",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = YapperWarmPaper
-            )
-
-            Row(
+            Column(
                 modifier = Modifier
+                    .widthIn(max = 640.dp)
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = YapperTokens.Space.page, vertical = YapperTokens.Space.lg),
             ) {
-                CreatorPreset.values().forEach { preset ->
-                    val isSelected = selectedPreset == preset
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isSelected) YapperSurfaceVariant else YapperSurface
-                        ),
-                        border = BorderStroke(
-                            width = if (isSelected) 2.dp else 1.dp,
-                            color = if (isSelected) YapperHotPink else YapperBorder
-                        ),
-                        modifier = Modifier
-                            .width(220.dp)
-                            .semantics {
-                                contentDescription = "${preset.title} style, ${preset.badge}. ${preset.desc}"
+                Header(onHelp = ::openTour)
+
+                when (tab) {
+                    DashboardTab.NEW_YAP -> StudioTab(
+                        look = look,
+                        onLook = { lookName = it.name },
+                        showTourHint = !tourSeen,
+                        onTour = ::openTour,
+                        draft = draft,
+                        ingesting = ingesting,
+                        ingestProgress = ingestProgress,
+                        ingestLabel = ingestLabel,
+                        onChooseClips = {
+                            picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly))
+                        },
+                        onClear = {
+                            PhotoPickerManager(context).clearStaging()
+                            draft = null
+                        },
+                        onEditInStudio = {
+                            if (!openStudio(context, "/app/new?${look.studioQuery}")) {
+                                say("No browser found. Visit yapperzdelight.com to edit your yap.")
                             }
-                            .clickable { selectedPreset = preset }
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Box(
-                                modifier = Modifier
-                                    .background(
-                                        if (isSelected) YapperHotPink else YapperBorder,
-                                        RoundedCornerShape(6.dp)
-                                    )
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = preset.badge,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
+                        },
+                        onKeep = {
+                            val current = draft ?: return@StudioTab
+                            scope.launch {
+                                val next = library.keep(current, look.title)
+                                kept.clear()
+                                kept.addAll(next)
+                                draft = null
+                                tabName = DashboardTab.MY_YAPS.name
+                                say("Kept on this phone. These are your original clips, ready to edit any time.")
                             }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = preset.title,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = YapperWarmPaper
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = preset.desc,
-                                fontSize = 12.sp,
-                                color = YapperTextMuted,
-                                lineHeight = 16.sp
-                            )
-                        }
-                    }
-                }
-            }
-
-            OutlinedButton(
-                onClick = { selectedTab = DashboardTab.MY_VIDEOS },
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, YapperHotPink.copy(alpha = 0.5f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-            ) {
-                Text(
-                    text = "🎬 View My Videos (${recentVideos.size} Ready) ➔",
-                    color = YapperHotPinkLight,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        } else {
-            // Tab 2: My Videos View
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = YapperSurfaceVariant,
-                border = BorderStroke(1.dp, YapperBorder),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { selectedTab = DashboardTab.STUDIO }
-            ) {
-                Row(
-                    modifier = Modifier.padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("➕", fontSize = 16.sp)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Create Another Video",
-                            fontWeight = FontWeight.Bold,
-                            color = YapperHotPinkLight,
-                            fontSize = 14.sp
-                        )
-                    }
-                    Text("Go to Studio ➔", fontSize = 12.sp, color = YapperTextMuted)
-                }
-            }
-
-            // 5. My Videos (v2 Finish Screen & Export)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "My Videos (v2 Renders)",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = YapperWarmPaper
-                )
-                Text(
-                    text = "${recentVideos.size} Completed",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = YapperSuccess
-                )
-            }
-
-            recentVideos.forEach { video ->
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = YapperSurface),
-                    border = BorderStroke(1.dp, YapperBorder),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { activePlayingVideo = video }
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = video.title,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = YapperWarmPaper
-                                )
-                                Text(
-                                    text = "${video.durationText} • ${video.resolutionText} • ${video.dateText}",
-                                    fontSize = 12.sp,
-                                    color = YapperTextMuted
-                                )
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .background(Color(0xFF143B22), RoundedCornerShape(8.dp))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = "Ready",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = YapperSuccess
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Video Thumbnail Preview Frame with Scrim and Play Button
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(160.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF140E12))
-                                .clickable { activePlayingVideo = video },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            val bitmapState = remember(video.filePath) {
-                                mutableStateOf<android.graphics.Bitmap?>(null)
-                            }
-
-                            LaunchedEffect(video.filePath) {
-                                if (video.filePath != null) {
-                                    val file = File(video.filePath)
-                                    if (file.exists() && file.length() > 1024) {
-                                        try {
-                                            val retriever = MediaMetadataRetriever()
-                                            retriever.setDataSource(file.absolutePath)
-                                            val frame = retriever.getFrameAtTime(500000)
-                                            bitmapState.value = frame
-                                            retriever.release()
-                                        } catch (e: Exception) {
-                                            // fallback
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (bitmapState.value != null) {
-                                Image(
-                                    bitmap = bitmapState.value!!.asImageBitmap(),
-                                    contentDescription = "Video preview frame for ${video.title}",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                                // Dark gradient scrim
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(Color.Black.copy(alpha = 0.35f))
-                                )
-                            } else {
-                                // Styled Video Gradient Placeholder
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(
-                                            Brush.verticalGradient(
-                                                colors = listOf(Color(0xFF2C1924), Color(0xFF181015))
-                                            )
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("🎬", fontSize = 36.sp)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text("Tap to Watch AI Preview", fontSize = 12.sp, color = YapperHotPinkLight, fontWeight = FontWeight.SemiBold)
-                                    }
-                                }
-                            }
-
-                            // Centered Big Round Play Button
-                            Box(
-                                modifier = Modifier
-                                    .size(54.dp)
-                                    .background(YapperHotPink.copy(alpha = 0.95f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("▶", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                            }
-
-                            // Bottom Duration Pill
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(8.dp)
-                                    .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(6.dp))
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                            ) {
-                                Text(video.durationText, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Large Play Video Button
-                        Button(
-                            onClick = { activePlayingVideo = video },
-                            colors = ButtonDefaults.buttonColors(containerColor = YapperHotPink),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(44.dp)
-                        ) {
-                            Text("▶️ Tap to Play Video", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 14.sp)
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = {
-                                    coroutineScope.launch {
-                                        try {
-                                            val exporter = MediaStoreExporter(context)
-                                            val targetFile = if (video.filePath != null && File(video.filePath).exists()) {
-                                                File(video.filePath)
-                                            } else {
-                                                val stagingFiles = File(context.cacheDir, "staging").listFiles()?.filter { it.extension == "mp4" && it.length() > 1024 }
-                                                stagingFiles?.firstOrNull() ?: File(context.cacheDir, "yap_${video.id}.mp4").apply {
-                                                    if (!exists()) writeBytes(ByteArray(1024))
-                                                }
-                                            }
-                                            exporter.exportYap(targetFile, video.title)
-                                            Toast.makeText(context, "Saved real video to Movies/Yapper in Gallery!", Toast.LENGTH_LONG).show()
-                                        } catch (e: Exception) {
-                                            Toast.makeText(context, "Export saved to gallery: ${video.title}", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                border = BorderStroke(1.dp, YapperBorder),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .semantics {
-                                        contentDescription = "Save ${video.title} to device photos and gallery"
-                                    }
-                            ) {
-                                Text("Save to Photos", fontSize = 13.sp, color = YapperWarmPaper)
-                            }
-
-                            Button(
-                                onClick = {
-                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_TEXT, "Check out my polished video edited on Yapper 2.0! https://yapperzdelight.com")
-                                    }
-                                    context.startActivity(Intent.createChooser(shareIntent, "Share Yap"))
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = YapperSurfaceVariant),
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .semantics {
-                                        contentDescription = "Share ${video.title} video with social apps"
-                                    }
-                            ) {
-                                Text("Share", fontSize = 13.sp, color = YapperWarmPaper)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 6. Account & Play Store Data Safety Footer
-            Spacer(modifier = Modifier.height(10.dp))
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = YapperSurface),
-                border = BorderStroke(1.dp, YapperBorder),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Account & Data Privacy",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = YapperWarmPaper
+                        },
+                        onPrivacy = {
+                            if (!openStudio(context, "/privacy")) say("No browser found. Visit yapperzdelight.com/privacy.")
+                        },
+                        onDeleteAccount = { showDeleteAccount = true },
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "In compliance with Google Play Data Safety policies, you can request full deletion of your account and stored video footage at any time.",
-                        fontSize = 12.sp,
-                        color = YapperTextMuted,
-                        lineHeight = 16.sp
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        TextButton(
-                            onClick = {
-                                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://yapperzdelight.com/privacy"))
-                                context.startActivity(browserIntent)
+
+                    DashboardTab.MY_YAPS -> LibraryTab(
+                        items = kept,
+                        onPlay = { playing = it },
+                        onSave = saveToPhotos,
+                        onShare = { yap ->
+                            if (!shareVideoFile(context, yap.file, yap.title)) {
+                                say("This clip is no longer on your phone, so it cannot be shared.")
                             }
-                        ) {
-                            Text("Privacy Policy", fontSize = 12.sp, color = YapperHotPinkLight)
-                        }
-
-                        TextButton(
-                            onClick = { showDeleteAccountDialog = true }
-                        ) {
-                            Text("Delete Account", fontSize = 12.sp, color = Color(0xFFEF4444))
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-        }
-    }
-
-    val detailContent: @Composable () -> Unit = {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = YapperSurface,
-                border = BorderStroke(2.dp, YapperHotPink.copy(alpha = 0.5f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(450.dp)
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text("🎬", fontSize = 48.sp)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = "4K HDR Preview Player",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = YapperWarmPaper
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Selected Look: ${selectedPreset.title}",
-                        fontSize = 14.sp,
-                        color = YapperHotPinkLight
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Safe-zone overlays active for TikTok, Reels & Shorts",
-                        fontSize = 12.sp,
-                        color = YapperTextMuted
+                        },
+                        onRemove = { confirmRemove = it },
+                        onOpenStudioYaps = {
+                            if (!openStudio(context, "/app/yaps")) say("No browser found. Visit yapperzdelight.com to see your yaps.")
+                        },
+                        onAddClips = { tabName = DashboardTab.NEW_YAP.name },
                     )
                 }
+                Spacer(Modifier.height(YapperTokens.Space.xxl))
             }
         }
     }
 
-    YapperAdaptiveScaffold(
-        windowWidthClass = windowWidthClass,
-        listPane = listContent,
-        detailPane = detailContent,
-        modifier = modifier.background(YapperInkBackground)
-    )
-
-    if (showDeleteAccountDialog) {
+    confirmRemove?.let { yap ->
         AlertDialog(
-            onDismissRequest = { showDeleteAccountDialog = false },
-            title = { Text("Delete Yapper Account?") },
+            onDismissRequest = { confirmRemove = null },
+            containerColor = c.card,
+            shape = YapperTokens.Radius.card,
+            title = { Text("Remove this clip?", style = MaterialTheme.typography.headlineSmall, color = c.ink) },
             text = {
-                Text("This permanently deletes your account, pending edits, and stored footage. This action conforms to Google Play Data Safety requirements and cannot be undone.")
+                Text(
+                    "It is removed from Yapperz Delight on this phone. The original stays in your gallery.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = c.muted,
+                )
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        val deletionManager = AccountDeletionManager(context)
-                        deletionManager.openPublicDeletionPortal()
-                        showDeleteAccountDialog = false
+                        confirmRemove = null
+                        scope.launch {
+                            val next = library.remove(yap)
+                            kept.clear()
+                            kept.addAll(next)
+                        }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
-                ) {
-                    Text("Continue to Deletion Portal", color = Color.White)
-                }
+                    shape = YapperTokens.Radius.pill,
+                    colors = ButtonDefaults.buttonColors(containerColor = c.danger, contentColor = if (c.isDark) c.dangerSoft else Color.White),
+                ) { Text("Remove", style = MaterialTheme.typography.labelLarge) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteAccountDialog = false }) {
-                    Text("Cancel", color = YapperWarmPaper)
+                TextButton(onClick = { confirmRemove = null }) {
+                    Text("Keep it", style = MaterialTheme.typography.labelLarge, color = c.ink)
+                }
+            },
+        )
+    }
+
+    if (showDeleteAccount) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAccount = false },
+            containerColor = c.card,
+            shape = YapperTokens.Radius.card,
+            title = { Text("Delete your account?", style = MaterialTheme.typography.headlineSmall, color = c.ink) },
+            text = {
+                Text(
+                    "We will open the account deletion page, where you can permanently delete your account and every video you have uploaded. This cannot be undone.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = c.muted,
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteAccount = false
+                        AccountDeletionManager(context).openPublicDeletionPortal()
+                    },
+                    shape = YapperTokens.Radius.pill,
+                    colors = ButtonDefaults.buttonColors(containerColor = c.danger, contentColor = if (c.isDark) c.dangerSoft else Color.White),
+                ) { Text("Continue", style = MaterialTheme.typography.labelLarge) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAccount = false }) {
+                    Text("Cancel", style = MaterialTheme.typography.labelLarge, color = c.ink)
+                }
+            },
+        )
+    }
+
+    if (showTour) YapperTutorialWalkthroughDialog(onDismiss = { showTour = false })
+
+    playing?.let { yap ->
+        YapVideoPlayerModal(video = yap, onDismiss = { playing = null }, onSave = saveToPhotos)
+    }
+}
+
+@Composable
+private fun Header(onHelp: () -> Unit) {
+    val c = YapperTheme.colors
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        YapperWordmark(modifier = Modifier.weight(1f))
+        IconButton(onClick = onHelp, modifier = Modifier.size(YapperTokens.MinTouch)) {
+            Icon(YapperIcons.Help, contentDescription = "Take the 1 minute tour", tint = c.muted)
+        }
+    }
+}
+
+@Composable
+private fun StudioTab(
+    look: CreatorLook,
+    onLook: (CreatorLook) -> Unit,
+    showTourHint: Boolean,
+    onTour: () -> Unit,
+    draft: SelectionDraft?,
+    ingesting: Boolean,
+    ingestProgress: Float,
+    ingestLabel: String,
+    onChooseClips: () -> Unit,
+    onClear: () -> Unit,
+    onEditInStudio: () -> Unit,
+    onKeep: () -> Unit,
+    onPrivacy: () -> Unit,
+    onDeleteAccount: () -> Unit,
+) {
+    val c = YapperTheme.colors
+    Text("Give me the mess. I'll find the yap.", style = MaterialTheme.typography.bodyMedium, color = c.muted)
+    if (showTourHint) {
+        Text(
+            "New here? Take the 1 minute tour",
+            style = MaterialTheme.typography.labelMedium,
+            color = c.accent,
+            modifier = Modifier
+                .clickable(role = Role.Button, onClick = onTour)
+                .heightIn(min = YapperTokens.MinTouch)
+                .padding(vertical = 14.dp),
+        )
+    }
+
+    Spacer(Modifier.height(if (showTourHint) 12.dp else 28.dp))
+    SectionHeading(kicker = "Step 1", title = "Pick your look")
+    Spacer(Modifier.height(14.dp))
+    CreatorLook.entries.chunked(2).forEach { row ->
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+            row.forEach { item ->
+                LookTile(look = item, selected = item == look, onClick = { onLook(item) }, modifier = Modifier.weight(1f))
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+    }
+
+    YapperCard(color = c.cardSubtle, contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp)) {
+        Kicker("Before you film")
+        Spacer(Modifier.height(10.dp))
+        look.cues.forEachIndexed { i, cue ->
+            Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(top = if (i == 0) 0.dp else 10.dp)) {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .size(6.dp)
+                        .background(c.accent, CircleShape),
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(cue, style = MaterialTheme.typography.bodyMedium, color = c.ink)
+            }
+        }
+    }
+
+    Spacer(Modifier.height(32.dp))
+    SectionHeading(
+        kicker = "Step 2",
+        title = "Add your clips",
+        subtitle = "Pick up to 15 clips from your gallery. They stay on this phone until you choose what happens next.",
+    )
+    Spacer(Modifier.height(16.dp))
+
+    when {
+        ingesting -> YapperCard {
+            LinearProgressIndicator(
+                progress = { ingestProgress.coerceIn(0f, 1f) },
+                color = c.accent,
+                trackColor = c.petal,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(YapperTokens.Radius.pill),
+            )
+            Spacer(Modifier.height(10.dp))
+            Text("$ingestLabel\u2026", style = MaterialTheme.typography.bodySmall, color = c.muted)
+        }
+
+        draft != null && draft.clips.isNotEmpty() -> YapperCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(c.petal, YapperTokens.Radius.thumb),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(YapperIcons.Film, contentDescription = null, tint = c.accentDeep)
+                }
+                Spacer(Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        if (draft.count == 1) "1 clip ready" else "${draft.count} clips ready",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = c.ink,
+                    )
+                    Text(
+                        "${formatDuration(draft.totalDurationMs)} · ${formatSize(draft.totalBytes)} · ${look.title}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = c.muted,
+                    )
+                }
+                TextButton(onClick = onClear, modifier = Modifier.heightIn(min = YapperTokens.MinTouch)) {
+                    Text("Clear", style = MaterialTheme.typography.labelMedium, color = c.accent)
                 }
             }
+            Spacer(Modifier.height(18.dp))
+            PrimaryPillButton(
+                text = "Edit in my studio",
+                icon = YapperIcons.OpenExternal,
+                onClick = onEditInStudio,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Opens yapperzdelight.com, where your yap is edited. Add these same clips there.",
+                style = MaterialTheme.typography.bodySmall,
+                color = c.muted,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(14.dp))
+            GhostPillButton(text = "Keep on this phone", onClick = onKeep, modifier = Modifier.fillMaxWidth())
+        }
+
+        else -> PrimaryPillButton(
+            text = "Choose clips",
+            icon = YapperIcons.Plus,
+            onClick = onChooseClips,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 
-    if (showTutorialDialog) {
-        YapperTutorialWalkthroughDialog(
-            onDismiss = dismissTutorial
+    Spacer(Modifier.height(36.dp))
+    YapperCard {
+        Kicker("Your account")
+        Spacer(Modifier.height(8.dp))
+        Text("Your videos, your call", style = MaterialTheme.typography.titleSmall, color = c.ink)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "You can delete your account and every video you have uploaded, any time.",
+            style = MaterialTheme.typography.bodySmall,
+            color = c.muted,
         )
+        Spacer(Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+            TextButton(onClick = onPrivacy, modifier = Modifier.heightIn(min = YapperTokens.MinTouch)) {
+                Text("Privacy policy", style = MaterialTheme.typography.labelMedium, color = c.accent)
+            }
+            TextButton(onClick = onDeleteAccount, modifier = Modifier.heightIn(min = YapperTokens.MinTouch)) {
+                Text("Delete account", style = MaterialTheme.typography.labelMedium, color = c.danger)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LookTile(look: CreatorLook, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val c = YapperTheme.colors
+    Surface(
+        shape = YapperTokens.Radius.tile,
+        color = if (selected) c.petal else c.card,
+        border = BorderStroke(if (selected) 2.dp else YapperTokens.BorderWidth, if (selected) c.accent else c.line),
+        modifier = modifier
+            .heightIn(min = 112.dp)
+            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(look.title, style = MaterialTheme.typography.titleSmall, color = c.ink, modifier = Modifier.weight(1f))
+                if (selected) {
+                    Icon(YapperIcons.Check, contentDescription = null, tint = c.accent, modifier = Modifier.size(20.dp))
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(look.line, style = MaterialTheme.typography.bodySmall, color = c.muted)
+        }
+    }
+}
+
+@Composable
+private fun LibraryTab(
+    items: List<LocalYap>,
+    onPlay: (LocalYap) -> Unit,
+    onSave: (LocalYap) -> Unit,
+    onShare: (LocalYap) -> Unit,
+    onRemove: (LocalYap) -> Unit,
+    onOpenStudioYaps: () -> Unit,
+    onAddClips: () -> Unit,
+) {
+    val c = YapperTheme.colors
+    Spacer(Modifier.height(20.dp))
+    SectionHeading(
+        kicker = "On this phone",
+        title = "My yaps",
+        subtitle = "Clips you kept on this phone. Your finished edits live in your online studio.",
+    )
+    Spacer(Modifier.height(14.dp))
+    GhostPillButton(text = "See my finished yaps", icon = YapperIcons.OpenExternal, onClick = onOpenStudioYaps)
+    Spacer(Modifier.height(20.dp))
+
+    if (items.isEmpty()) {
+        YapperCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(28.dp)) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .background(c.petal, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(YapperIcons.MyYaps, contentDescription = null, tint = c.accentDeep, modifier = Modifier.size(28.dp))
+                }
+                Spacer(Modifier.height(16.dp))
+                Text("Nothing kept yet", style = MaterialTheme.typography.headlineSmall, color = c.ink)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Clips you keep on this phone show up here, ready to watch, save or share.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = c.muted,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(20.dp))
+                PrimaryPillButton(text = "Add clips", icon = YapperIcons.Plus, onClick = onAddClips)
+            }
+        }
+        return
     }
 
-    if (activePlayingVideo != null) {
-        YapVideoPlayerModal(
-            video = activePlayingVideo!!,
-            onDismiss = { activePlayingVideo = null }
-        )
+    items.forEachIndexed { i, yap ->
+        if (i > 0) Spacer(Modifier.height(12.dp))
+        LibraryItem(yap = yap, onPlay = onPlay, onSave = onSave, onShare = onShare, onRemove = onRemove)
     }
+}
+
+@Composable
+private fun LibraryItem(
+    yap: LocalYap,
+    onPlay: (LocalYap) -> Unit,
+    onSave: (LocalYap) -> Unit,
+    onShare: (LocalYap) -> Unit,
+    onRemove: (LocalYap) -> Unit,
+) {
+    val c = YapperTheme.colors
+    var frame by remember(yap.id) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(yap.id) { frame = loadFrame(yap) }
+
+    YapperCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(14.dp)) {
+        Row {
+            Box(
+                modifier = Modifier
+                    .width(84.dp)
+                    .height(150.dp)
+                    .clip(YapperTokens.Radius.thumb)
+                    .background(YapperTokens.Immersive)
+                    .clickable(role = Role.Button, onClick = { onPlay(yap) })
+                    .semantics { contentDescription = "Play ${yap.title}" },
+                contentAlignment = Alignment.Center,
+            ) {
+                frame?.let {
+                    Image(
+                        bitmap = it.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .background(c.accent.copy(alpha = 0.94f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(YapperIcons.Play, contentDescription = null, tint = c.onAccent, modifier = Modifier.size(18.dp))
+                }
+                Text(
+                    formatDuration(yap.durationMs),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp)
+                        .background(Color.Black.copy(alpha = 0.62f), YapperTokens.Radius.pill)
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 14.dp),
+            ) {
+                Text(yap.title, style = MaterialTheme.typography.titleMedium, color = c.ink)
+                Spacer(Modifier.height(6.dp))
+                StatusChip(text = "Original, not edited")
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "${yap.lookTitle} · ${dateLabel(yap.savedAtEpochMs)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = c.muted,
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    IconButton(onClick = { onSave(yap) }, modifier = Modifier.size(YapperTokens.MinTouch)) {
+                        Icon(YapperIcons.Save, contentDescription = "Save ${yap.title} to Photos", tint = c.ink)
+                    }
+                    IconButton(onClick = { onShare(yap) }, modifier = Modifier.size(YapperTokens.MinTouch)) {
+                        Icon(YapperIcons.Share, contentDescription = "Share ${yap.title}", tint = c.ink)
+                    }
+                    IconButton(onClick = { onRemove(yap) }, modifier = Modifier.size(YapperTokens.MinTouch)) {
+                        Icon(YapperIcons.Trash, contentDescription = "Remove ${yap.title} from this phone", tint = c.muted)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private suspend fun loadFrame(yap: LocalYap): Bitmap? = withContext(Dispatchers.IO) {
+    if (!yap.exists) return@withContext null
+    val retriever = MediaMetadataRetriever()
+    try {
+        retriever.setDataSource(yap.filePath)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            retriever.getScaledFrameAtTime(500_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, 270, 480)
+        } else {
+            retriever.getFrameAtTime(500_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+        }
+    } catch (_: Exception) {
+        null
+    } finally {
+        runCatching { retriever.release() }
+    }
+}
+
+private fun formatSize(bytes: Long): String {
+    val mb = bytes / (1024.0 * 1024.0)
+    return if (mb >= 1024) "%.1f GB".format(mb / 1024.0) else "%.0f MB".format(mb.coerceAtLeast(1.0))
+}
+
+private fun dateLabel(epochMs: Long): String {
+    val then = Calendar.getInstance().apply { timeInMillis = epochMs }
+    val now = Calendar.getInstance()
+    fun sameDay(a: Calendar, b: Calendar) = a.get(Calendar.YEAR) == b.get(Calendar.YEAR) && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR)
+    if (sameDay(then, now)) return "Today"
+    now.add(Calendar.DAY_OF_YEAR, -1)
+    if (sameDay(then, now)) return "Yesterday"
+    return SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(epochMs))
 }

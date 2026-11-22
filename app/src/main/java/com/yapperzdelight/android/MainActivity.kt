@@ -9,12 +9,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.yapperzdelight.android.ui.Yapper2DashboardScreen
 import com.yapperzdelight.android.ui.theme.Yapper2Theme
-import com.yapperzdelight.android.ui.theme.YapperInkBackground
+import com.yapperzdelight.android.ui.theme.YapperTheme
 
 /**
- * Canonical entry Activity for Yapper 2.0 Android.
- * Integrates the Trybe UGC revision studio, TikTok Shop creator looks,
- * adaptive foldable/phone scaffold, and Google Play Data Safety compliance.
+ * Entry Activity for Yapperz Delight on Android: the same blush, plum and magenta brand as the web studio,
+ * following the phone's light or dark setting.
  */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -22,10 +21,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             Yapper2Theme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = YapperInkBackground
-                ) {
+                Surface(modifier = Modifier.fillMaxSize(), color = YapperTheme.colors.background) {
                     Yapper2DashboardScreen()
                 }
             }
