@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Window colours, twins of the web studio tokens (globals.css :root). Dark twins live in values-night. -->
+<resources>
+    <color name="yapper_background">#FFFFF5F9</color>
+    <color name="yapper_accent">#FFD6006F</color>
+    <color name="yapper_ink">#FF2B0A21</color>
+    <color name="yapper_icon_background">#FFFF4FA3</color>
+    <color name="yapper_icon_plate">#FFFFFDF7</color>
+    <color name="yapper_icon_mark">#FFD6006F</color>
+    <bool name="yapper_light_system_bars">true</bool>
+</resources>

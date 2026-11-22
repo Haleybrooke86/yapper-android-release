@@ -38,20 +38,20 @@ class YapUploadManager(private val context: Context) {
             // Low-importance channel for silent upload progress updates
             val uploadChannel = NotificationChannel(
                 UPLOAD_CHANNEL_ID,
-                "Yapper Video Uploads",
+                "Video uploads",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Shows progress during video clip uploads"
+                description = "Shows progress while your clips upload"
                 setShowBadge(false)
             }
 
             // High-importance channel for Yap render completion alerts
             val renderChannel = NotificationChannel(
                 RENDER_CHANNEL_ID,
-                "Yap Render Complete",
+                "Your yap is ready",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Alerts when your 4K HDR Yap is ready for review"
+                description = "Lets you know when your yap is ready to watch"
                 enableVibration(true)
                 setShowBadge(true)
             }

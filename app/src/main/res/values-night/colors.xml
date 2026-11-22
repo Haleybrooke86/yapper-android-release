@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="yapper_background">#FF2B0A21</color>
+    <color name="yapper_accent">#FFFF4FA3</color>
+    <color name="yapper_ink">#FFFFF5F9</color>
+    <bool name="yapper_light_system_bars">false</bool>
+</resources>

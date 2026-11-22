@@ -1,217 +1,184 @@
 package com.yapperzdelight.android.ui
 
-import android.content.Context
-import android.content.Intent
 import android.widget.MediaController
-import android.widget.Toast
 import android.widget.VideoView
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.yapper.android.media.MediaStoreExporter
-import com.yapperzdelight.android.ui.theme.*
-import kotlinx.coroutines.launch
-import java.io.File
+import android.widget.Toast
+import com.yapperzdelight.android.data.LocalYap
+import com.yapperzdelight.android.ui.theme.YapperIcons
+import com.yapperzdelight.android.ui.theme.YapperTheme
+import com.yapperzdelight.android.ui.theme.YapperTokens
 
+/**
+ * Full screen player for a clip kept on this phone. Plays the real file in a 9:16 frame on deep plum,
+ * with Save and Share under the thumb. If the file cannot play, it says so; it never pretends.
+ */
 @Composable
 fun YapVideoPlayerModal(
-    video: RenderedVideo,
-    onDismiss: () -> Unit
+    video: LocalYap,
+    onDismiss: () -> Unit,
+    onSave: (LocalYap) -> Unit,
 ) {
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    val videoFile = video.filePath?.let { File(it) }
-    val hasValidFile = videoFile != null && videoFile.exists() && videoFile.length() > 1024
+    val c = YapperTheme.colors
+    var playbackFailed by remember(video.id) { mutableStateOf(!video.exists) }
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .background(YapperTokens.Immersive)
+                .safeDrawingPadding(),
         ) {
-            if (hasValidFile) {
-                // Native Hardware VideoView Player
-                AndroidView(
-                    factory = { ctx ->
-                        VideoView(ctx).apply {
-                            val controller = MediaController(ctx)
-                            controller.setAnchorView(this)
-                            setMediaController(controller)
-                            setVideoPath(videoFile!!.absolutePath)
-                            setOnPreparedListener { mp ->
-                                mp.isLooping = true
-                                start()
-                            }
-                            setOnErrorListener { _, _, _ ->
-                                Toast.makeText(ctx, "Preview playback ready", Toast.LENGTH_SHORT).show()
-                                true
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                // Editorial Preview Screen if file is pending or mock
-                Column(
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .background(YapperHotPink.copy(alpha = 0.2f), CircleShape),
-                        contentAlignment = Alignment.Center
+                    IconButton(
+                        onClick = onDismiss,
+                        colors = IconButtonDefaults.iconButtonColors(contentColor = YapperTokens.OnImmersive),
+                        modifier = Modifier.size(YapperTokens.MinTouch),
                     ) {
-                        Text("🎬", fontSize = 38.sp)
+                        Icon(YapperIcons.Close, contentDescription = "Close the player")
                     }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    Text(
-                        text = video.title,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = YapperWarmPaper,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "${video.durationText} • ${video.resolutionText} • ${video.statusText}",
-                        fontSize = 14.sp,
-                        color = YapperTextMuted
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = YapperSurfaceVariant,
-                        border = BorderStroke(1.dp, YapperBorder),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "✨ AI Audio & Video Processing",
-                                fontWeight = FontWeight.Bold,
-                                color = YapperHotPinkLight,
-                                fontSize = 14.sp
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = "• Loudness mastered to -14 LUFS\n• Pauses & silences pruned\n• Vertical safe-zone captions aligned",
-                                fontSize = 13.sp,
-                                color = YapperWarmPaper,
-                                lineHeight = 18.sp
-                            )
-                        }
+                    Column(modifier = Modifier.weight(1f).padding(start = 4.dp)) {
+                        Text(video.title, style = MaterialTheme.typography.titleMedium, color = YapperTokens.OnImmersive)
+                        Text(
+                            "${formatDuration(video.durationMs)} · Original clip, not edited yet",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = YapperTokens.OnImmersive.copy(alpha = 0.72f),
+                        )
                     }
                 }
-            }
 
-            // Top Header Bar Overlay
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .background(Color.Black.copy(alpha = 0.6f))
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = video.title,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = "Yapper 2.0 Player • ${video.durationText}",
-                        fontSize = 12.sp,
-                        color = YapperHotPinkLight
-                    )
-                }
-
-                IconButton(
-                    onClick = onDismiss,
+                Box(
                     modifier = Modifier
-                        .size(36.dp)
-                        .background(Color.White.copy(alpha = 0.2f), CircleShape)
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Text("✕", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
-            }
-
-            // Bottom Floating Action Overlay
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = {
-                        coroutineScope.launch {
-                            try {
-                                val exporter = MediaStoreExporter(context)
-                                val targetFile = videoFile ?: File(context.cacheDir, "yap_${video.id}.mp4").apply {
-                                    if (!exists()) writeBytes(ByteArray(1024))
+                    if (playbackFailed) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(YapperIcons.Film, contentDescription = null, tint = c.neon, modifier = Modifier.size(40.dp))
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                "This clip will not play on this phone.",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = YapperTokens.OnImmersive,
+                                textAlign = TextAlign.Center,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "It may have been moved or deleted. You can still edit the original in your online studio.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = YapperTokens.OnImmersive.copy(alpha = 0.72f),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.widthIn(max = 320.dp),
+                            )
+                        }
+                    } else {
+                        AndroidView(
+                            factory = { ctx ->
+                                VideoView(ctx).apply {
+                                    val controller = MediaController(ctx)
+                                    controller.setAnchorView(this)
+                                    setMediaController(controller)
+                                    setVideoPath(video.filePath)
+                                    setOnPreparedListener { mp ->
+                                        mp.isLooping = true
+                                        start()
+                                    }
+                                    setOnErrorListener { _, _, _ ->
+                                        playbackFailed = true
+                                        true
+                                    }
                                 }
-                                exporter.exportYap(targetFile, video.title)
-                                Toast.makeText(context, "Saved to Movies/Yapper in Gallery!", Toast.LENGTH_LONG).show()
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "Exported: ${video.title}", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = YapperHotPink),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f).height(48.dp)
-                ) {
-                    Text("Save to Photos", fontWeight = FontWeight.Bold, color = Color.White)
+                            },
+                            onRelease = { it.stopPlayback() },
+                            modifier = Modifier
+                                .aspectRatio(9f / 16f, matchHeightConstraintsFirst = true)
+                                .clip(YapperTokens.Radius.tile)
+                                .background(Color.Black),
+                        )
+                    }
                 }
 
-                Button(
-                    onClick = {
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, "Check out my polished video edited on Yapper 2.0! https://yapperzdelight.com")
-                        }
-                        context.startActivity(Intent.createChooser(shareIntent, "Share Yap"))
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = YapperSurfaceVariant),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f).height(48.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text("Share", fontWeight = FontWeight.Bold, color = Color.White)
+                    PrimaryPillButton(
+                        text = "Save to Photos",
+                        icon = YapperIcons.Save,
+                        onClick = { onSave(video) },
+                        enabled = video.exists,
+                        modifier = Modifier.weight(1f),
+                    )
+                    GhostPillButton(
+                        text = "Share",
+                        icon = YapperIcons.Share,
+                        onClick = {
+                            if (!shareVideoFile(context, video.file, video.title)) {
+                                Toast.makeText(context, "This video is no longer on your phone, so it cannot be shared.", Toast.LENGTH_LONG).show()
+                            }
+                        },
+                        enabled = video.exists,
+                        contentColor = YapperTokens.OnImmersive,
+                        containerColor = Color.Transparent,
+                        borderColor = YapperTokens.OnImmersive.copy(alpha = 0.4f),
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
         }
     }
+}
+
+/** 0:42 style durations, the way the web yap cards show them. */
+fun formatDuration(ms: Long): String {
+    if (ms <= 0L) return "0:00"
+    val total = (ms + 500) / 1000
+    return "%d:%02d".format(total / 60, total % 60)
 }

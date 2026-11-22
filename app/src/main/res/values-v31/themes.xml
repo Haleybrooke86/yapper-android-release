@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ system splash: brand paper behind the Yapperz Delight icon, then straight into the app. -->
+<resources>
+    <style name="Theme.Yapper" parent="Base.Theme.Yapper">
+        <item name="android:windowLightNavigationBar">@bool/yapper_light_system_bars</item>
+        <item name="android:windowSplashScreenBackground">@color/yapper_background</item>
+    </style>
+</resources>

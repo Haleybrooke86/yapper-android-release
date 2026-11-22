@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the folders that hold creator videos are shareable: kept clips and freshly staged clips. -->
+<paths>
+    <files-path name="kept_yaps" path="yaps/" />
+    <cache-path name="staged_clips" path="staging/" />
+</paths>
