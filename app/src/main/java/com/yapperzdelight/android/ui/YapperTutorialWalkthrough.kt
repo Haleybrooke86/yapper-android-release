@@ -43,12 +43,12 @@ val YapperTutorialSteps = listOf(
     TutorialStep(
         icon = YapperIcons.NewYap,
         title = "Pick your look",
-        description = "At the top of New yap, choose Storytime, Lifestyle, TikTok Shop or Just edit it. You get three quick tips for filming that kind of video. Trybe & UGC opens in your browser right below.",
+        description = "At the top of New yap, choose Storytime, Lifestyle, TikTok Shop or Just edit it for filming cues, or tap Twin Split Studio, Teleprompter Camera, Trybe & UGC, or Style & Quiet Luxury to film right in your studio.",
     ),
     TutorialStep(
         icon = YapperIcons.Plus,
         title = "Add your clips",
-        description = "Tap Choose clips and pick up to 15 from your gallery. They stay on this phone until you decide what to do next.",
+        description = "Tap Choose clips and pick up to 15 from your gallery. Each clip gets a numbered order badge and stays on this phone until you decide what happens next.",
     ),
     TutorialStep(
         icon = YapperIcons.OpenExternal,

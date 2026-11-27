@@ -135,4 +135,42 @@ object YapperIcons {
     val VolumeOff: ImageVector by lazy {
         line("VolumeOff", "M4 9.5v5h3.5l4.5 3.5v-12l-4.5 3.5z", "M16 9.5l5 5", "M21 9.5l-5 5")
     }
+
+    val TwinSplit: ImageVector by lazy {
+        line(
+            "TwinSplit",
+            "M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2H5a2 2 0 0 1 -2 -2V6a2 2 0 0 1 2 -2z",
+            "M12 4v3.2",
+            "M12 10.4v3.2",
+            "M12 16.8V20",
+        )
+    }
+
+    val Teleprompter: ImageVector by lazy {
+        line(
+            "Teleprompter",
+            "M6 3.5h12a2 2 0 0 1 2 2v13a2 2 0 0 1 -2 2H6a2 2 0 0 1 -2 -2v-13a2 2 0 0 1 2 -2z",
+            "M12 7.2a0.9 0.9 0 1 1 0 0.02",
+            "M8 11.2h8",
+            "M8 14.2h8",
+            "M9.5 17.2h5",
+        )
+    }
+
+    val Brief: ImageVector by lazy {
+        line(
+            "Brief",
+            "M7 3.5h7l5 5v10a2 2 0 0 1 -2 2H7a2 2 0 0 1 -2 -2v-13a2 2 0 0 1 2 -2z",
+            "M14 3.5v5h5",
+            "M8.5 13h7",
+            "M8.5 16.5h4.5",
+        )
+    }
+
+    val StyleSparkle: ImageVector by lazy {
+        line(
+            "StyleSparkle",
+            "M12 3.5l2 5.8l5.8 2l-5.8 2l-2 5.8l-2 -5.8l-5.8 -2l5.8 -2z",
+        )
+    }
 }
