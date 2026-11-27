@@ -144,11 +144,80 @@ enum class DashboardTab(val label: String, val icon: ImageVector) {
     MY_YAPS("My yaps", YapperIcons.MyYaps),
 }
 
+/**
+ * Direct hand-offs to the live web studio modes shipped in Waves 45-58:
+ * Twin Split 50/50 camera, eye-line Solo Teleprompter, Trybe & UGC briefs, and Style (including Quiet Luxury).
+ */
+enum class StudioTool(
+    val title: String,
+    val subtitle: String,
+    val studioPath: String,
+    val badge: String? = null,
+) {
+    TWIN_SPLIT(
+        title = "Twin Split Studio",
+        subtitle = "Film both sides of an A/B conversation with a 50/50 split guide.",
+        studioPath = "/app/new?format=side_by_side",
+        badge = "New",
+    ),
+    TELEPROMPTER(
+        title = "Teleprompter Camera",
+        subtitle = "Read lines right under your lens and say \"next\" hands-free.",
+        studioPath = "/app/new?teleprompter=1",
+        badge = "New",
+    ),
+    TRYBE_UGC(
+        title = "Trybe & UGC",
+        subtitle = "Upload a brand brief, pick a hook, and match every shot.",
+        studioPath = "/app/trybe",
+    ),
+    STYLE_LOOKS(
+        title = "Style & Quiet Luxury",
+        subtitle = "Pick Signature, Couture, or Quiet Luxury for every new yap.",
+        studioPath = "/app/style",
+    );
+
+    val icon: ImageVector
+        get() = when (this) {
+            TWIN_SPLIT -> YapperIcons.TwinSplit
+            TELEPROMPTER -> YapperIcons.Teleprompter
+            TRYBE_UGC -> YapperIcons.Brief
+            STYLE_LOOKS -> YapperIcons.StyleSparkle
+        }
+}
+
+private val JOB_ID_PATTERN = Regex("^[A-Za-z0-9-]{6,64}$")
+
+/**
+ * Parses yapper://yap/{jobId} or https://yapperzdelight.com/yap/{jobId} safely without android.net.Uri
+ * so unit tests on the JVM verify the exact same logic that runs on a phone.
+ */
+fun extractDeepLinkJobId(rawUri: String?): String? {
+    val trimmed = rawUri?.trim().orEmpty()
+    if (trimmed.isEmpty() || trimmed.contains("..")) return null
+    val withoutFragment = trimmed.substringBefore('#').substringBefore('?')
+    val candidate = when {
+        withoutFragment.startsWith("yapper://yap/", ignoreCase = true) ->
+            withoutFragment.substringAfter("yapper://yap/", "")
+        withoutFragment.startsWith("https://yapperzdelight.com/yap/", ignoreCase = true) ->
+            withoutFragment.substringAfter("https://yapperzdelight.com/yap/", "")
+        withoutFragment.startsWith("https://www.yapperzdelight.com/yap/", ignoreCase = true) ->
+            withoutFragment.substringAfter("https://www.yapperzdelight.com/yap/", "")
+        else -> ""
+    }.trim('/')
+    if (candidate.contains('/')) return null
+    return candidate.takeIf { JOB_ID_PATTERN.matches(it) }
+}
+
 private const val PREFS = "yapper_creator_prefs"
 private const val KEY_TOUR_SEEN = "has_seen_v3_tour"
 
 @Composable
-fun Yapper2DashboardScreen(modifier: Modifier = Modifier) {
+fun Yapper2DashboardScreen(
+    modifier: Modifier = Modifier,
+    deepLinkJobId: String? = null,
+    onDismissDeepLink: () -> Unit = {},
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val c = YapperTheme.colors
@@ -259,6 +328,20 @@ fun Yapper2DashboardScreen(modifier: Modifier = Modifier) {
             ) {
                 Header(onHelp = ::openTour)
 
+                if (deepLinkJobId != null) {
+                    Spacer(Modifier.height(12.dp))
+                    DeepLinkYapBanner(
+                        onOpen = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onDismissDeepLink()
+                            if (!openStudio(context, "/app/jobs/$deepLinkJobId")) {
+                                say("No browser found. Visit yapperzdelight.com to open your yap.")
+                            }
+                        },
+                        onDismiss = onDismissDeepLink,
+                    )
+                }
+
                 when (tab) {
                     DashboardTab.NEW_YAP -> StudioTab(
                         look = look,
@@ -266,10 +349,10 @@ fun Yapper2DashboardScreen(modifier: Modifier = Modifier) {
                             if (it.name != lookName) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             lookName = it.name
                         },
-                        onTrybe = {
+                        onOpenStudioTool = { tool ->
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            if (!openStudio(context, "/app/trybe")) {
-                                say("No browser found. Visit yapperzdelight.com/app/trybe.")
+                            if (!openStudio(context, tool.studioPath)) {
+                                say("No browser found. Visit yapperzdelight.com${tool.studioPath}.")
                             }
                         },
                         showTourHint = !tourSeen,
@@ -417,7 +500,7 @@ private fun Header(onHelp: () -> Unit) {
 private fun StudioTab(
     look: CreatorLook,
     onLook: (CreatorLook) -> Unit,
-    onTrybe: () -> Unit,
+    onOpenStudioTool: (StudioTool) -> Unit,
     showTourHint: Boolean,
     onTour: () -> Unit,
     draft: SelectionDraft?,
@@ -457,9 +540,6 @@ private fun StudioTab(
         Spacer(Modifier.height(12.dp))
     }
 
-    TrybeQuickOpen(onClick = onTrybe)
-    Spacer(Modifier.height(12.dp))
-
     YapperCard(color = c.cardSubtle, contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp)) {
         Kicker("Before you film")
         Spacer(Modifier.height(10.dp))
@@ -475,6 +555,18 @@ private fun StudioTab(
                 Text(cue, style = MaterialTheme.typography.bodyMedium, color = c.ink)
             }
         }
+    }
+
+    Spacer(Modifier.height(28.dp))
+    SectionHeading(
+        kicker = "Camera & studio tools",
+        title = "Film right in your studio",
+        subtitle = "Open Twin Split, your lens teleprompter, Trybe briefs, or Quiet Luxury styling on the web.",
+    )
+    Spacer(Modifier.height(14.dp))
+    StudioTool.entries.forEachIndexed { index, tool ->
+        if (index > 0) Spacer(Modifier.height(10.dp))
+        StudioToolTile(tool = tool, onClick = { onOpenStudioTool(tool) })
     }
 
     Spacer(Modifier.height(32.dp))
@@ -580,7 +672,31 @@ private fun StudioTab(
 }
 
 @Composable
-private fun TrybeQuickOpen(onClick: () -> Unit) {
+private fun DeepLinkYapBanner(onOpen: () -> Unit, onDismiss: () -> Unit) {
+    val c = YapperTheme.colors
+    YapperCard(color = c.petal, border = c.accent, contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.weight(1f)) {
+                Kicker("Shared yap link", color = c.accentDeep)
+                Spacer(Modifier.height(4.dp))
+                Text("Open this yap in your studio", style = MaterialTheme.typography.titleSmall, color = c.ink)
+            }
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = YapperTokens.MinTouch)) {
+                Text("Dismiss", style = MaterialTheme.typography.labelMedium, color = c.muted)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        PrimaryPillButton(
+            text = "Open in my studio",
+            icon = YapperIcons.OpenExternal,
+            onClick = onOpen,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun StudioToolTile(tool: StudioTool, onClick: () -> Unit) {
     val c = YapperTheme.colors
     Surface(
         shape = YapperTokens.Radius.tile,
@@ -589,14 +705,29 @@ private fun TrybeQuickOpen(onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = YapperTokens.MinTouch)
-            .clickable(role = Role.Button, onClickLabel = "Open Trybe and UGC in your browser", onClick = onClick),
+            .clickable(role = Role.Button, onClickLabel = "Open ${tool.title} in your browser", onClick = onClick),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Trybe & UGC", style = MaterialTheme.typography.titleSmall, color = c.ink)
-                Spacer(Modifier.height(2.dp))
-                Text("Brand brief and revisions, on the web.", style = MaterialTheme.typography.bodySmall, color = c.muted)
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(c.petal, YapperTokens.Radius.field),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(tool.icon, contentDescription = null, tint = c.accentDeep, modifier = Modifier.size(22.dp))
             }
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(tool.title, style = MaterialTheme.typography.titleSmall, color = c.ink)
+                    if (tool.badge != null) {
+                        StatusChip(text = tool.badge, tone = ChipTone.Petal)
+                    }
+                }
+                Spacer(Modifier.height(3.dp))
+                Text(tool.subtitle, style = MaterialTheme.typography.bodySmall, color = c.muted)
+            }
+            Spacer(Modifier.width(10.dp))
             Icon(YapperIcons.OpenExternal, contentDescription = null, tint = c.accent, modifier = Modifier.size(20.dp))
         }
     }
